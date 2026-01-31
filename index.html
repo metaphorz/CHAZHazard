@@ -108,8 +108,8 @@
             <option value="rp10">10-year</option>
             <option value="rp25">25-year</option>
             <option value="rp50">50-year</option>
-            <option value="rp100" selected>100-year</option>
-            <option value="rp250">250-year</option>
+            <option value="rp100">100-year</option>
+            <option value="rp250" selected>250-year</option>
             <option value="rp1000">1000-year</option>
         </select>
         <label style="color:#666; font-size:10px;">Model: CESM2 / SSP585</label>
@@ -180,7 +180,7 @@
         let allData = {};
         let floridaData = [];
         let markers = L.layerGroup().addTo(map);
-        let currentRP = 'rp100';
+        let currentRP = 'rp250';
         let currentPeriod = 'base';
 
         // Embedded Florida data (all time periods)
