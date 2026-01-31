@@ -1,10 +1,8 @@
-# Large data files
-*.zip
-exceedance_intensity/
-return_periods/
+# Data directory (large files)
+data/
+
+# Code directory (separate CHAZ model repo)
+code/
 
 # macOS
 .DS_Store
-
-# Extracted JSON kept separately (embedded in HTML)
-florida_data.json
