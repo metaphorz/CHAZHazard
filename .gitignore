@@ -1,5 +1,9 @@
-# Data directory (large files)
-data/
+# Large data files in map/
+map/*.zip
+map/exceedance_intensity/
+map/return_periods/
+map/florida_data.json
+map/florida_all_periods.json
 
 # Code directory (separate CHAZ model repo)
 code/
