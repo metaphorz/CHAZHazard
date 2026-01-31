@@ -215,7 +215,7 @@
                     <strong>All Return Periods (m/s)</strong><br>
                     10yr: ${point.rp10} | 25yr: ${point.rp25} | 50yr: ${point.rp50}<br>
                     100yr: ${point.rp100} | 250yr: ${point.rp250} | 1000yr: ${point.rp1000}
-                `);
+                `, { direction: 'bottom', offset: [0, 10] });
 
                 markers.addLayer(circle);
             });
