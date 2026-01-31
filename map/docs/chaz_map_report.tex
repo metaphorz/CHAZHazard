@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-This report documents an interactive web-based visualization tool for exploring tropical cyclone wind hazard data for Florida. The tool displays exceedance intensity data from the Columbia HAZard (CHAZ) model, allowing users to compare historical baseline conditions (1995--2014) with mid-century (2041--2060) and late-century (2081--2100) climate projections under the SSP585 emissions scenario.
+This report documents an interactive web-based visualization tool for exploring tropical cyclone wind hazard data for Florida. The tool displays exceedance intensity data from the Columbia HAZard (CHAZ) model, allowing users to compare historical baseline conditions (1995--2014) with mid-century (2041--2060) and late-century (2081--2100) climate projections under the SSP585 emissions scenario. Users can select from six different CMIP6 climate models or view a multi-model mean to explore uncertainty across model projections.
 \end{abstract}
 
 \section{Introduction}
@@ -55,15 +55,36 @@ CHAZ consists of three primary modules:
 
 \subsection{Climate Model Input}
 
-The visualization uses data generated from the CESM2 climate model under the SSP585 scenario (high emissions, ``business as usual''). Six climate models are available in the full dataset:
+The visualization includes data from six CMIP6 climate models, all run under the SSP585 scenario (high emissions, ``business as usual''). Users can select any individual model or view a multi-model mean that averages across all six. Table~\ref{tab:models} describes each available model.
+
+\begin{table}[H]
+\centering
+\caption{Climate models available in the visualization}
+\label{tab:models}
+\begin{tabular}{lll}
+\toprule
+\textbf{Model} & \textbf{Institution} & \textbf{Country} \\
+\midrule
+CESM2 & National Center for Atmospheric Research & USA \\
+CNRM-CM6-1 & Centre National de Recherches M\'{e}t\'{e}orologiques & France \\
+EC-Earth3 & EC-Earth Consortium & Europe \\
+IPSL-CM6A-LR & Institut Pierre Simon Laplace & France \\
+MIROC6 & Multiple Japanese Institutions & Japan \\
+UKESM1-0-LL & UK Met Office / NERC & UK \\
+\midrule
+\textit{Multi-Model Mean} & \textit{Average of all 6 models} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Why Multiple Models?}
+
+Different climate models make different assumptions about physical processes, leading to a range of projections. By including all six models, users can:
 
 \begin{itemize}
-    \item CESM2
-    \item CNRM-CM6-1
-    \item EC-Earth3
-    \item IPSL-CM6A-LR
-    \item MIROC6
-    \item UKESM1-0-LL
+    \item Assess \textbf{model uncertainty} by comparing projections across models
+    \item Identify \textbf{robust signals} that appear consistently across models
+    \item Use the \textbf{multi-model mean} as a consensus estimate that smooths individual model biases
 \end{itemize}
 
 \section{Time Periods and Climate Projections}
@@ -113,6 +134,7 @@ Key climate variables that change between periods include:
 The interactive map includes the following features:
 
 \begin{itemize}
+    \item \textbf{Climate Model Selector}: Choose from six individual CMIP6 models or the multi-model mean (CESM2 is the default)
     \item \textbf{Time Period Selector}: Switch between historical, mid-century, and late-century projections
     \item \textbf{Return Period Selector}: Choose from 10, 25, 50, 100, 250, or 1000-year return periods
     \item \textbf{Color-Coded Markers}: Circle markers colored by wind speed intensity
@@ -162,13 +184,15 @@ Data is embedded directly in the HTML file to avoid CORS restrictions and enable
 
 \section{Data Processing}
 
-The original CHAZ data covers global coastal areas with over 1 million points. For this visualization:
+The original CHAZ data covers global coastal areas with over 1 million points per model. For this visualization:
 
 \begin{enumerate}
     \item Florida points were extracted using a bounding box (lat: 24--31°N, lon: 88--79.5°W)
     \item Ocean points were filtered out using a Florida land polygon
-    \item Data for all three time periods was combined into a single embedded dataset
+    \item Data for all six climate models and three time periods was extracted
+    \item The multi-model mean was computed by averaging wind speeds across all six models at each grid point
     \item Wind speeds were rounded to one decimal place to reduce file size
+    \item All data (7 model options $\times$ 3 time periods $\times$ 2,094 points) was embedded in the HTML
 \end{enumerate}
 
 \section{Acknowledgments}
