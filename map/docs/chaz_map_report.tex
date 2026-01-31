@@ -1,0 +1,192 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\title{CHAZ Florida Hurricane Hazard Map\\[0.5em]\large Interactive Visualization of Tropical Cyclone Wind Hazard Data}
+\author{Paul Fishwick \and Claude Code}
+\date{January 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report documents an interactive web-based visualization tool for exploring tropical cyclone wind hazard data for Florida. The tool displays exceedance intensity data from the Columbia HAZard (CHAZ) model, allowing users to compare historical baseline conditions (1995--2014) with mid-century (2041--2060) and late-century (2081--2100) climate projections under the SSP585 emissions scenario.
+\end{abstract}
+
+\section{Introduction}
+
+Tropical cyclones pose significant risks to Florida's coastal communities. Understanding how hurricane wind hazards may change under future climate scenarios is essential for long-term planning, infrastructure design, and risk assessment. This project provides an accessible, interactive tool for exploring CHAZ model output data.
+
+The visualization is available online at: \url{https://metaphorz.github.io/CHAZHazard/}
+
+\section{Data Source}
+
+The underlying data comes from the CHAZ Hazard Maps dataset published on Dryad:
+
+\begin{quote}
+Meiler, S., et al. (2025). CHAZ Hazard Maps: Global coastal wind hazard maps from the CHAZ tropical cyclone model. Dryad. \url{https://doi.org/10.5061/dryad.qfttdz0vz}
+\end{quote}
+
+The dataset provides exceedance intensity values---the wind speeds (in m/s) expected to be exceeded at various return periods (10, 25, 50, 100, 250, and 1000 years)---for coastal locations worldwide. For this visualization, we extracted 2,094 land-based points covering Florida.
+
+\section{The CHAZ Model}
+
+\subsection{Overview}
+
+The Columbia HAZard model (CHAZ) is a statistical-dynamical downscaling model for estimating tropical cyclone hazard. Rather than predicting specific future hurricanes, CHAZ generates thousands of synthetic storms based on climate conditions from global climate models (GCMs), then aggregates statistics to estimate hazard metrics.
+
+\subsection{Model Components}
+
+CHAZ consists of three primary modules:
+
+\begin{enumerate}
+    \item \textbf{Genesis Module}: Uses the Tropical Cyclone Genesis Index (TCGI) to estimate where and when storm precursors form based on environmental conditions.
+
+    \item \textbf{Track Module}: Employs a Beta-Advection Model (BAM) that moves storms forward using environmental steering flow from the climate model.
+
+    \item \textbf{Intensity Module}: Evolves storm intensity using an autoregressive model with deterministic forcing (based on potential intensity, wind shear, humidity) and stochastic elements.
+\end{enumerate}
+
+\subsection{Climate Model Input}
+
+The visualization uses data generated from the CESM2 climate model under the SSP585 scenario (high emissions, ``business as usual''). Six climate models are available in the full dataset:
+
+\begin{itemize}
+    \item CESM2
+    \item CNRM-CM6-1
+    \item EC-Earth3
+    \item IPSL-CM6A-LR
+    \item MIROC6
+    \item UKESM1-0-LL
+\end{itemize}
+
+\section{Time Periods and Climate Projections}
+
+The visualization includes three time periods, as shown in Table~\ref{tab:periods}.
+
+\begin{table}[H]
+\centering
+\caption{Time periods available in the visualization}
+\label{tab:periods}
+\begin{tabular}{lll}
+\toprule
+\textbf{Period} & \textbf{Years} & \textbf{Description} \\
+\midrule
+Historical (base) & 1995--2014 & Baseline climate conditions \\
+Mid-Century (fut1) & 2041--2060 & Near-future projection \\
+Late-Century (fut2) & 2081--2100 & End-of-century projection \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{How Future Projections Are Generated}
+
+For each time period, CHAZ:
+
+\begin{enumerate}
+    \item Reads climate conditions (SST, winds, humidity, etc.) from the GCM
+    \item Calculates genesis probability using TCGI
+    \item Seeds thousands of synthetic storms based on genesis rates
+    \item Simulates each storm's track using steering winds
+    \item Evolves intensity based on environmental conditions
+    \item Aggregates statistics across 80 ensemble members ($\sim$1,600 synthetic years)
+\end{enumerate}
+
+Key climate variables that change between periods include:
+
+\begin{itemize}
+    \item \textbf{Sea Surface Temperature (SST)}: Warmer oceans provide more energy for storms
+    \item \textbf{Potential Intensity (PI)}: Maximum theoretical storm strength increases
+    \item \textbf{Vertical Wind Shear}: Affects storm formation and intensification
+    \item \textbf{Mid-level Humidity}: Influences moisture availability
+    \item \textbf{Atmospheric Circulation}: Alters steering currents and track patterns
+\end{itemize}
+
+\section{Visualization Features}
+
+The interactive map includes the following features:
+
+\begin{itemize}
+    \item \textbf{Time Period Selector}: Switch between historical, mid-century, and late-century projections
+    \item \textbf{Return Period Selector}: Choose from 10, 25, 50, 100, 250, or 1000-year return periods
+    \item \textbf{Color-Coded Markers}: Circle markers colored by wind speed intensity
+    \item \textbf{Hover Tooltips}: Display coordinates, wind speed (m/s, km/h, mph), hurricane category, and all return period values
+    \item \textbf{Legend}: Wind speed scale with three unit systems
+\end{itemize}
+
+\section{Results}
+
+Figure~\ref{fig:historical} shows the 250-year return period wind speeds for the historical baseline (1995--2014). Figure~\ref{fig:future} shows the same metric for the late-century projection (2081--2100).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig_historical.png}
+\caption{250-year return period wind speeds for Florida under historical climate conditions (1995--2014). Colors indicate wind intensity from blue (lower) to red (higher).}
+\label{fig:historical}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig_future.png}
+\caption{250-year return period wind speeds for Florida under late-century climate projections (2081--2100, SSP585). Comparison with Figure~\ref{fig:historical} reveals changes in hazard distribution.}
+\label{fig:future}
+\end{figure}
+
+\subsection{Key Observations}
+
+Comparing the historical and future projections reveals several patterns consistent with climate change projections for tropical cyclones:
+
+\begin{itemize}
+    \item Overall wind intensities show increases in many coastal areas
+    \item The spatial pattern of highest hazard remains concentrated along the southeast coast and Keys
+    \item Some inland areas show modest changes in projected hazard
+\end{itemize}
+
+\section{Technical Implementation}
+
+The visualization is built using:
+
+\begin{itemize}
+    \item \textbf{Leaflet.js}: Open-source JavaScript library for interactive maps
+    \item \textbf{HTML/CSS/JavaScript}: Standard web technologies for broad compatibility
+    \item \textbf{GitHub Pages}: Free hosting for static web content
+\end{itemize}
+
+Data is embedded directly in the HTML file to avoid CORS restrictions and enable offline use. The approximately 2,094 land points are rendered efficiently using Leaflet's CircleMarker class.
+
+\section{Data Processing}
+
+The original CHAZ data covers global coastal areas with over 1 million points. For this visualization:
+
+\begin{enumerate}
+    \item Florida points were extracted using a bounding box (lat: 24--31°N, lon: 88--79.5°W)
+    \item Ocean points were filtered out using a Florida land polygon
+    \item Data for all three time periods was combined into a single embedded dataset
+    \item Wind speeds were rounded to one decimal place to reduce file size
+\end{enumerate}
+
+\section{Acknowledgments}
+
+This visualization was developed by Paul Fishwick with assistance from Claude Code. The underlying CHAZ model was developed by the Columbia University team: Drs. Suzana J. Camargo, Chia-Ying Lee, Michael K. Tippett, and Adam H. Sobel.
+
+\section{License}
+
+The visualization code is released under the MIT License. The underlying CHAZ hazard data is released under Creative Commons Zero (CC0).
+
+\section{References}
+
+\begin{enumerate}
+    \item Lee, C.-Y., Tippett, M.K., Sobel, A.H., and Camargo, S.J. (2018). An environmentally forced tropical cyclone hazard model. \textit{Journal of Advances in Modeling Earth Systems}, 10, 233--241.
+
+    \item Lee, C.-Y., Camargo, S.J., Sobel, A.H., and Tippett, M.K. (2020). Statistical-dynamical downscaling projections of tropical cyclone activity in a warming climate. \textit{Journal of Climate}, 33, 4815--4834.
+
+    \item CHAZ GitHub Repository: \url{https://github.com/cl3225/CHAZ}
+\end{enumerate}
+
+\end{document}
