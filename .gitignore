@@ -1,0 +1,10 @@
+# Large data files
+*.zip
+exceedance_intensity/
+return_periods/
+
+# macOS
+.DS_Store
+
+# Extracted JSON kept separately (embedded in HTML)
+florida_data.json
