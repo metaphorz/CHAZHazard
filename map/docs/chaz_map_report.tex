@@ -53,6 +53,22 @@ CHAZ consists of three primary modules:
     \item \textbf{Intensity Module}: Evolves storm intensity using an autoregressive model with deterministic forcing (based on potential intensity, wind shear, humidity) and stochastic elements.
 \end{enumerate}
 
+\subsection{Return Period Calculation}
+
+A common question is how CHAZ calculates return periods (e.g., 100-year or 1000-year wind speeds) from a historical period of only 20 years. The key is that CHAZ uses the \textit{climate conditions} from each period to generate thousands of synthetic storms---far more than actually occurred.
+
+The process works as follows:
+
+\begin{enumerate}
+    \item \textbf{Climate input}: CHAZ reads environmental conditions (SST, wind shear, humidity, etc.) from the climate model for the time period of interest
+    \item \textbf{Synthetic storm generation}: Using these conditions, CHAZ generates approximately 1,600 synthetic years of storms (80 ensemble members $\times$ 20 years per member)
+    \item \textbf{Wind speed sampling}: For each grid point, CHAZ records the maximum wind speed from every synthetic storm that passes nearby
+    \item \textbf{Extreme value statistics}: These thousands of wind speed samples are fitted to an extreme value distribution
+    \item \textbf{Return period extraction}: From the fitted distribution, CHAZ calculates the wind speed expected to be exceeded with probability $1/T$ per year, where $T$ is the return period
+\end{enumerate}
+
+For example, a 100-year return period wind speed is the value that has a 1\% annual exceedance probability based on the statistical distribution of all synthetic storms. This approach allows robust estimation of rare events (like 1000-year winds) because the synthetic storm ensemble provides sufficient statistical samples, even when the underlying climate period is only 20 years.
+
 \subsection{Climate Model Input}
 
 The visualization includes data from six CMIP6 climate models, all run under the SSP585 scenario (high emissions, ``business as usual''). Users can select any individual model or view a multi-model mean that averages across all six. Table~\ref{tab:models} describes each available model.
