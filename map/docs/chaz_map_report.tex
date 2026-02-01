@@ -77,6 +77,42 @@ UKESM1-0-LL & UK Met Office / NERC & UK \\
 \end{tabular}
 \end{table}
 
+\subsection{About the CMIP6 Models}
+
+These models are all part of the Coupled Model Intercomparison Project Phase 6 (CMIP6), which provides the foundation for the IPCC Sixth Assessment Reports. They represent the cutting edge of climate simulation, moving beyond simple physics to include complex Earth System processes like the carbon cycle and vegetation dynamics.
+
+\textbf{CESM2} (Community Earth System Model v2) from the National Center for Atmospheric Research (NCAR), USA, is a highly flexible, community-driven model known for its advanced representation of land-ice (ice sheets) and its CAM6 atmospheric component. It is often used as a benchmark due to its extensive documentation and broad scientific community.
+
+\textbf{CNRM-CM6-1} from CNRM (Centre National de Recherches M\'{e}t\'{e}orologiques), France, uses the ARPEGE-Climat atmospheric model with significant improvements in cloud representation, convection, and surface-atmosphere interactions via the SURFEX system. It is highly efficient and frequently used for High Resolution Model Intercomparison (HighResMIP).
+
+\textbf{EC-Earth3} from a European consortium of 27 research institutes across 10 countries is based on the European Centre for Medium-Range Weather Forecasts (ECMWF) Integrated Forecasting System (IFS). Uniquely, it uses the same core as the world's leading weather prediction model, bridging short-term weather forecasting and long-term climate projection.
+
+\textbf{IPSL-CM6A-LR} from Institut Pierre-Simon Laplace (IPSL), France, is a complete Earth System Model including the LMDz atmospheric model and ORCHIDEE land surface model. ``LR'' indicates Low Resolution, enabling very long multi-century simulations. It excels at simulating the carbon cycle and biosphere-atmosphere interactions.
+
+\textbf{MIROC6} (Model for Interdisciplinary Research on Climate) from JAMSTEC, University of Tokyo, and NIES in Japan focuses on improving internal variability---natural climate swings like El Ni\~{n}o. It features improved stratosphere and shallow convection representation, with particular strength in simulating the Madden-Julian Oscillation (MJO) and tropical rainfall patterns.
+
+\textbf{UKESM1-0-LL} from the Met Office Hadley Centre, UK, is a full-complexity Earth System Model that takes the physical core of HadGEM3 and adds fully interactive chemistry, aerosols, and marine/terrestrial biogeochemistry. It is one of the most comprehensive models in CMIP6, used to explore tipping points and complex climate feedbacks.
+
+Table~\ref{tab:components} compares the core components of each model.
+
+\begin{table}[H]
+\centering
+\caption{Core components of the CMIP6 climate models}
+\label{tab:components}
+\begin{tabular}{llll}
+\toprule
+\textbf{Model} & \textbf{Atmosphere} & \textbf{Land Surface} & \textbf{Ocean} \\
+\midrule
+CESM2 & CAM6 & CLM5 & POP2 \\
+CNRM-CM6-1 & ARPEGE-Climat v6.3 & ISBA-CTRIP & NEMO 3.6 \\
+EC-Earth3 & IFS & HTESSEL & NEMO 3.6 \\
+IPSL-CM6A-LR & LMDz6 & ORCHIDEE & NEMO 3.6 \\
+MIROC6 & CCSR-NIES AGCM & MATSIRO & COCO 4.9 \\
+UKESM1-0-LL & HadGEM3-GC3.1 & JULES & NEMO 3.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Why Multiple Models?}
 
 Different climate models make different assumptions about physical processes, leading to a range of projections. By including all six models, users can:
