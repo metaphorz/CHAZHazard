@@ -340,37 +340,99 @@ html_content = f'''<!DOCTYPE html>
             }});
         }}
 
-        function renderHeatmap() {{
-            // IDW (Inverse Distance Weighting) interpolation on canvas
-            const bounds = map.getBounds();
-            const size = map.getSize();
+        // Compute data bounds from Florida points
+        function getDataBounds() {{
+            const lats = floridaData.map(p => p.lat);
+            const lons = floridaData.map(p => p.lon);
+            return {{
+                latMin: Math.min(...lats),
+                latMax: Math.max(...lats),
+                lonMin: Math.min(...lons),
+                lonMax: Math.max(...lons)
+            }};
+        }}
 
-            // Create canvas
-            const canvas = document.createElement('canvas');
-            canvas.width = size.x;
-            canvas.height = size.y;
-            const ctx = canvas.getContext('2d');
+        // IDW grid generation (similar to KDE approach but for scalar values)
+        function idwGrid(NX = 150, NY = 150) {{
+            const bounds = getDataBounds();
+            const padding = 0.05; // Small padding in degrees
+            const latMin = bounds.latMin - padding;
+            const latMax = bounds.latMax + padding;
+            const lonMin = bounds.lonMin - padding;
+            const lonMax = bounds.lonMax + padding;
 
-            // Resolution - lower = faster, higher = smoother
-            const resolution = 3; // pixels per calculation
-            const width = Math.ceil(canvas.width / resolution);
-            const height = Math.ceil(canvas.height / resolution);
+            const dx = (lonMax - lonMin) / (NX - 1);
+            const dy = (latMax - latMin) / (NY - 1);
 
-            // Precompute data point pixel positions
-            const dataPoints = floridaData.map(point => {{
-                const pixelPos = map.latLngToContainerPoint([point.lat, point.lon]);
-                return {{
-                    x: pixelPos.x,
-                    y: pixelPos.y,
-                    value: point[currentRP]
-                }};
-            }});
-
-            // IDW parameters
             const power = 2;
-            const maxDistance = 120; // Max influence distance in pixels
+            const maxDist = 0.15; // degrees - tight constraint to data
 
-            // Color function returning RGB
+            const raw = new Float64Array(NX * NY);
+            const valid = new Uint8Array(NX * NY);
+
+            for (let iy = 0; iy < NY; iy++) {{
+                const lat = latMin + iy * dy;
+                for (let ix = 0; ix < NX; ix++) {{
+                    const lon = lonMin + ix * dx;
+
+                    let weightSum = 0;
+                    let valueSum = 0;
+                    let nearCount = 0;
+
+                    for (const point of floridaData) {{
+                        const dLat = lat - point.lat;
+                        const dLon = lon - point.lon;
+                        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+
+                        if (dist < maxDist) {{
+                            nearCount++;
+                            if (dist < 0.001) {{
+                                weightSum = 1;
+                                valueSum = point[currentRP];
+                                break;
+                            }}
+                            const weight = 1 / Math.pow(dist, power);
+                            weightSum += weight;
+                            valueSum += weight * point[currentRP];
+                        }}
+                    }}
+
+                    const idx = iy * NX + ix;
+                    if (nearCount >= 2 && weightSum > 0) {{
+                        raw[idx] = valueSum / weightSum;
+                        valid[idx] = 1;
+                    }} else {{
+                        raw[idx] = 0;
+                        valid[idx] = 0;
+                    }}
+                }}
+            }}
+
+            let gmin = Infinity, gmax = -Infinity;
+            for (let i = 0; i < raw.length; i++) {{
+                if (valid[i]) {{
+                    if (raw[i] < gmin) gmin = raw[i];
+                    if (raw[i] > gmax) gmax = raw[i];
+                }}
+            }}
+
+            return {{ raw, valid, NX, NY, lonMin, latMin, dx, dy, gmin, gmax }};
+        }}
+
+        function renderHeatmap() {{
+            // Generate IDW grid
+            const G = idwGrid(150, 150);
+            if (!G) return;
+
+            // Create canvas for the grid area
+            const canvas = document.createElement('canvas');
+            canvas.width = G.NX;
+            canvas.height = G.NY;
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(G.NX, G.NY);
+            const data = imageData.data;
+
+            // Color function
             function getColorRGB(speed) {{
                 if (speed >= 80) return [165, 0, 38];
                 if (speed >= 70) return [215, 48, 39];
@@ -384,69 +446,36 @@ html_content = f'''<!DOCTYPE html>
                 return [49, 54, 149];
             }}
 
-            // Create image data
-            const imageData = ctx.createImageData(width, height);
-            const data = imageData.data;
+            // Fill image data (flip Y for canvas coordinates)
+            for (let iy = 0; iy < G.NY; iy++) {{
+                for (let ix = 0; ix < G.NX; ix++) {{
+                    const srcIdx = iy * G.NX + ix;
+                    const dstIdx = ((G.NY - 1 - iy) * G.NX + ix) * 4;
 
-            // Calculate interpolated values
-            for (let py = 0; py < height; py++) {{
-                for (let px = 0; px < width; px++) {{
-                    const x = px * resolution;
-                    const y = py * resolution;
-
-                    let weightSum = 0;
-                    let valueSum = 0;
-                    let hasNearby = false;
-
-                    for (const point of dataPoints) {{
-                        const dx = x - point.x;
-                        const dy = y - point.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-
-                        if (dist < maxDistance) {{
-                            hasNearby = true;
-                            if (dist < 1) {{
-                                weightSum = 1;
-                                valueSum = point.value;
-                                break;
-                            }}
-                            const weight = 1 / Math.pow(dist, power);
-                            weightSum += weight;
-                            valueSum += weight * point.value;
-                        }}
-                    }}
-
-                    const idx = (py * width + px) * 4;
-
-                    if (hasNearby && weightSum > 0) {{
-                        const interpolatedValue = valueSum / weightSum;
-                        const [r, g, b] = getColorRGB(interpolatedValue);
-                        data[idx] = r;
-                        data[idx + 1] = g;
-                        data[idx + 2] = b;
-                        data[idx + 3] = 180;
+                    if (G.valid[srcIdx]) {{
+                        const [r, g, b] = getColorRGB(G.raw[srcIdx]);
+                        data[dstIdx] = r;
+                        data[dstIdx + 1] = g;
+                        data[dstIdx + 2] = b;
+                        data[dstIdx + 3] = 180;
                     }} else {{
-                        data[idx + 3] = 0;
+                        data[dstIdx + 3] = 0;
                     }}
                 }}
             }}
 
-            // Draw to temp canvas then scale up
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            tempCanvas.getContext('2d').putImageData(imageData, 0, 0);
+            ctx.putImageData(imageData, 0, 0);
 
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(tempCanvas, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
+            // Create bounds for overlay
+            const imageBounds = [
+                [G.latMin, G.lonMin],
+                [G.latMin + G.NY * G.dy, G.lonMin + G.NX * G.dx]
+            ];
 
-            // Create image overlay
-            heatLayer = L.imageOverlay(canvas.toDataURL(), bounds, {{
+            heatLayer = L.imageOverlay(canvas.toDataURL(), imageBounds, {{
                 opacity: 0.85
             }}).addTo(map);
 
-            // Redraw on map move
             map.off('moveend', onMapMove);
             map.on('moveend', onMapMove);
         }}
@@ -461,132 +490,167 @@ html_content = f'''<!DOCTYPE html>
             }}
         }}
 
+        // Linear interpolation for contour edge crossing (from genesis-codex)
+        function contourInterpolate(t, vA, vB, xA, yA, xB, yB) {{
+            const d = vB - vA;
+            if (Math.abs(d) < 1e-12) return [(xA + xB) / 2, (yA + yB) / 2];
+            const s = (t - vA) / d;
+            return [xA + s * (xB - xA), yA + s * (yB - yA)];
+        }}
+
+        // Marching squares segment extraction (from genesis-codex)
+        function buildSegments(field, valid, NX, NY, t, lonMin, latMin, dx, dy) {{
+            const get = (ix, iy) => field[iy * NX + ix];
+            const isValid = (ix, iy) => valid[iy * NX + ix];
+            const segs = [];
+
+            for (let iy = 0; iy < NY - 1; iy++) {{
+                for (let ix = 0; ix < NX - 1; ix++) {{
+                    // Skip if any corner is invalid
+                    if (!isValid(ix, iy) || !isValid(ix + 1, iy) ||
+                        !isValid(ix, iy + 1) || !isValid(ix + 1, iy + 1)) continue;
+
+                    const tl = get(ix, iy), tr = get(ix + 1, iy);
+                    const br = get(ix + 1, iy + 1), bl = get(ix, iy + 1);
+
+                    let idx = 0;
+                    if (tl >= t) idx |= 1;
+                    if (tr >= t) idx |= 2;
+                    if (br >= t) idx |= 4;
+                    if (bl >= t) idx |= 8;
+
+                    if (idx === 0 || idx === 15) continue;
+
+                    const top = contourInterpolate(t, tl, tr, ix, iy, ix + 1, iy);
+                    const right = contourInterpolate(t, tr, br, ix + 1, iy, ix + 1, iy + 1);
+                    const bottom = contourInterpolate(t, bl, br, ix, iy + 1, ix + 1, iy + 1);
+                    const left = contourInterpolate(t, tl, bl, ix, iy, ix, iy + 1);
+
+                    const center = (tl + tr + br + bl) / 4;
+
+                    switch (idx) {{
+                        case 1: case 14: segs.push([left, top]); break;
+                        case 2: case 13: segs.push([top, right]); break;
+                        case 3: case 12: segs.push([left, right]); break;
+                        case 4: case 11: segs.push([right, bottom]); break;
+                        case 6: case 9: segs.push([top, bottom]); break;
+                        case 7: case 8: segs.push([bottom, left]); break;
+                        case 5:
+                            if (center >= t) {{ segs.push([top, right]); segs.push([bottom, left]); }}
+                            else {{ segs.push([left, top]); segs.push([right, bottom]); }}
+                            break;
+                        case 10:
+                            if (center >= t) {{ segs.push([left, top]); segs.push([right, bottom]); }}
+                            else {{ segs.push([top, right]); segs.push([bottom, left]); }}
+                            break;
+                    }}
+                }}
+            }}
+
+            // Convert grid coordinates to lat/lon
+            return segs.map(seg => [
+                [latMin + seg[0][1] * dy, lonMin + seg[0][0] * dx],
+                [latMin + seg[1][1] * dy, lonMin + seg[1][0] * dx]
+            ]);
+        }}
+
+        // Stitch segments into continuous polylines (from genesis-codex)
+        function stitchSegments(segs) {{
+            const key = (p) => p[0].toFixed(4) + "," + p[1].toFixed(4);
+            const buckets = new Map();
+
+            segs.forEach((s, i) => {{
+                const k1 = key(s[0]), k2 = key(s[1]);
+                if (!buckets.has(k1)) buckets.set(k1, []);
+                if (!buckets.has(k2)) buckets.set(k2, []);
+                buckets.get(k1).push(i);
+                buckets.get(k2).push(i);
+            }});
+
+            const used = new Array(segs.length).fill(false);
+            const polylines = [];
+
+            function takeChain(startIdx) {{
+                const chain = [];
+                used[startIdx] = true;
+                let a = segs[startIdx][0], b = segs[startIdx][1];
+                chain.push(a, b);
+                let cur = b;
+
+                while (true) {{
+                    const k = key(cur);
+                    const cand = buckets.get(k) || [];
+                    let nextIdx = -1, flip = false;
+
+                    for (let j of cand) {{
+                        if (used[j]) continue;
+                        const s = segs[j];
+                        const k0 = key(s[0]), k1 = key(s[1]);
+                        if (k0 === k) {{ nextIdx = j; flip = false; break; }}
+                        if (k1 === k) {{ nextIdx = j; flip = true; break; }}
+                    }}
+
+                    if (nextIdx < 0) break;
+                    used[nextIdx] = true;
+                    const s = segs[nextIdx];
+                    const nextPoint = flip ? s[0] : s[1];
+                    chain.push(nextPoint);
+                    cur = nextPoint;
+                    if (key(cur) === key(chain[0])) break; // closed loop
+                }}
+                return chain;
+            }}
+
+            for (let i = 0; i < segs.length; i++) {{
+                if (used[i]) continue;
+                polylines.push(takeChain(i));
+            }}
+            return polylines;
+        }}
+
         function renderContours() {{
-            // IDW interpolation + Marching Squares for smooth contour lines
             const thresholds = [30, 40, 45, 50, 55, 60, 70];
             const colors = ['#4575b4', '#74add1', '#abd9e9', '#fee090', '#fdae61', '#f46d43', '#d73027'];
 
             contourLayer.addTo(map);
 
-            // Create interpolated grid in lat/lon space
-            const bounds = map.getBounds();
-            const gridRes = 0.05; // degrees per cell
-            const latMin = bounds.getSouth();
-            const latMax = bounds.getNorth();
-            const lonMin = bounds.getWest();
-            const lonMax = bounds.getEast();
+            // Generate IDW grid
+            const G = idwGrid(120, 120);
+            if (!G) return;
 
-            const rows = Math.ceil((latMax - latMin) / gridRes);
-            const cols = Math.ceil((lonMax - lonMin) / gridRes);
-
-            // IDW interpolation to create grid
-            const power = 2;
-            const maxDist = 0.3; // degrees
-
-            const grid = [];
-            for (let r = 0; r <= rows; r++) {{
-                grid[r] = [];
-                for (let c = 0; c <= cols; c++) {{
-                    const lat = latMin + r * gridRes;
-                    const lon = lonMin + c * gridRes;
-
-                    let weightSum = 0;
-                    let valueSum = 0;
-
-                    for (const point of floridaData) {{
-                        const dLat = lat - point.lat;
-                        const dLon = lon - point.lon;
-                        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
-
-                        if (dist < maxDist) {{
-                            if (dist < 0.001) {{
-                                weightSum = 1;
-                                valueSum = point[currentRP];
-                                break;
-                            }}
-                            const weight = 1 / Math.pow(dist, power);
-                            weightSum += weight;
-                            valueSum += weight * point[currentRP];
-                        }}
-                    }}
-
-                    grid[r][c] = weightSum > 0 ? valueSum / weightSum : null;
-                }}
-            }}
-
-            // Marching squares for each threshold
             thresholds.forEach((threshold, idx) => {{
                 const color = colors[idx];
-                const segments = [];
 
-                // Find contour segments using marching squares
-                for (let r = 0; r < rows; r++) {{
-                    for (let c = 0; c < cols; c++) {{
-                        const v00 = grid[r][c];
-                        const v10 = grid[r][c + 1];
-                        const v01 = grid[r + 1]?.[c];
-                        const v11 = grid[r + 1]?.[c + 1];
+                // Build segments using marching squares
+                const segments = buildSegments(G.raw, G.valid, G.NX, G.NY, threshold,
+                    G.lonMin, G.latMin, G.dx, G.dy);
 
-                        if (v00 === null || v10 === null || v01 === null || v11 === null) continue;
+                if (segments.length === 0) return;
 
-                        // Determine cell configuration
-                        const b00 = v00 >= threshold ? 1 : 0;
-                        const b10 = v10 >= threshold ? 2 : 0;
-                        const b01 = v01 >= threshold ? 4 : 0;
-                        const b11 = v11 >= threshold ? 8 : 0;
-                        const cellType = b00 + b10 + b01 + b11;
+                // Stitch into continuous polylines
+                const polylines = stitchSegments(segments);
 
-                        if (cellType === 0 || cellType === 15) continue;
-
-                        const lat0 = latMin + r * gridRes;
-                        const lat1 = latMin + (r + 1) * gridRes;
-                        const lon0 = lonMin + c * gridRes;
-                        const lon1 = lonMin + (c + 1) * gridRes;
-
-                        // Interpolate edge crossings
-                        const interp = (v1, v2, p1, p2) => {{
-                            const t = (threshold - v1) / (v2 - v1);
-                            return p1 + t * (p2 - p1);
-                        }};
-
-                        const edges = {{}};
-                        if ((b00 !== 0) !== (b10 !== 0)) edges.bottom = [lat0, interp(v00, v10, lon0, lon1)];
-                        if ((b01 !== 0) !== (b11 !== 0)) edges.top = [lat1, interp(v01, v11, lon0, lon1)];
-                        if ((b00 !== 0) !== (b01 !== 0)) edges.left = [interp(v00, v01, lat0, lat1), lon0];
-                        if ((b10 !== 0) !== (b11 !== 0)) edges.right = [interp(v10, v11, lat0, lat1), lon1];
-
-                        // Connect edges based on cell type
-                        const edgeKeys = Object.keys(edges);
-                        if (edgeKeys.length >= 2) {{
-                            if (cellType === 5 || cellType === 10) {{
-                                // Saddle point - need special handling
-                                segments.push([edges[edgeKeys[0]], edges[edgeKeys[1]]]);
-                                if (edgeKeys.length === 4) {{
-                                    segments.push([edges[edgeKeys[2]], edges[edgeKeys[3]]]);
-                                }}
-                            }} else {{
-                                segments.push([edges[edgeKeys[0]], edges[edgeKeys[1]]]);
-                            }}
-                        }}
+                // Draw polylines
+                polylines.forEach(chain => {{
+                    if (chain.length >= 2) {{
+                        const line = L.polyline(chain, {{
+                            color: color,
+                            weight: 2.5,
+                            opacity: 0.9
+                        }});
+                        line.bindTooltip(`${{threshold}} m/s`, {{ sticky: true }});
+                        contourLayer.addLayer(line);
                     }}
-                }}
-
-                // Draw contour lines
-                segments.forEach(seg => {{
-                    const line = L.polyline([[seg[0][0], seg[0][1]], [seg[1][0], seg[1][1]]], {{
-                        color: color,
-                        weight: 2,
-                        opacity: 0.8
-                    }});
-                    contourLayer.addLayer(line);
                 }});
 
-                // Add label at midpoint of longest segment group
-                if (segments.length > 0) {{
-                    const midSeg = segments[Math.floor(segments.length / 2)];
-                    const labelLat = (midSeg[0][0] + midSeg[1][0]) / 2;
-                    const labelLon = (midSeg[0][1] + midSeg[1][1]) / 2;
-                    const label = L.marker([labelLat, labelLon], {{
+                // Add label on longest polyline
+                let longest = polylines[0] || [];
+                for (const pl of polylines) {{
+                    if (pl.length > longest.length) longest = pl;
+                }}
+                if (longest.length > 3) {{
+                    const midIdx = Math.floor(longest.length / 2);
+                    const label = L.marker(longest[midIdx], {{
                         icon: L.divIcon({{
                             className: 'contour-label',
                             html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
@@ -597,7 +661,6 @@ html_content = f'''<!DOCTYPE html>
                 }}
             }});
 
-            // Redraw on map move
             map.off('moveend', onContourMove);
             map.on('moveend', onContourMove);
         }}
