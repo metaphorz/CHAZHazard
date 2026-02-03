@@ -168,24 +168,58 @@ Different climate models make different assumptions about physical processes, le
 
 \section{Future Emissions Scenarios (SSP)}
 
-The visualization allows users to explore hurricane hazard under three Shared Socioeconomic Pathways (SSPs), which represent different assumptions about future socioeconomic development and greenhouse gas emissions. Table~\ref{tab:ssp} describes each scenario.
+The visualization allows users to explore hurricane hazard under three Shared Socioeconomic Pathways (SSPs), which represent different assumptions about future socioeconomic development and greenhouse gas emissions.
+
+\subsection{Understanding SSP Naming}
+
+SSP scenario names combine two components:
+
+\begin{itemize}
+    \item \textbf{First digit (1--5)}: The socioeconomic pathway describing societal development
+    \item \textbf{Remaining digits}: The radiative forcing level in W/m$^2$ by 2100
+\end{itemize}
+
+Table~\ref{tab:ssp_pathways} describes the five socioeconomic pathways defined by the climate research community.
+
+\begin{table}[H]
+\centering
+\caption{The five Shared Socioeconomic Pathways (SSP1--SSP5)}
+\label{tab:ssp_pathways}
+\begin{tabular}{lll}
+\toprule
+\textbf{Pathway} & \textbf{Name} & \textbf{Description} \\
+\midrule
+SSP1 & Sustainability & Low challenges, green growth, global cooperation \\
+SSP2 & Middle of the Road & Moderate challenges, historical development patterns \\
+SSP3 & Regional Rivalry & High challenges, fragmented world, limited cooperation \\
+SSP4 & Inequality & Mixed challenges, highly unequal development \\
+SSP5 & Fossil-fueled Development & Low challenges, high energy demand from fossil fuels \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The radiative forcing values (26, 45, 70, 85) represent the additional energy trapped in Earth's climate system by 2100, measured in watts per square meter. Higher forcing leads to more warming.
+
+\subsection{Scenarios in This Visualization}
+
+Table~\ref{tab:ssp} shows how our three scenarios map to the SSP framework.
 
 \begin{table}[H]
 \centering
 \caption{SSP scenarios available in the visualization}
 \label{tab:ssp}
-\begin{tabular}{llll}
+\begin{tabular}{lllll}
 \toprule
-\textbf{Scenario} & \textbf{Description} & \textbf{CO$_2$ by 2100} & \textbf{Warming} \\
+\textbf{Scenario} & \textbf{SSP} & \textbf{Forcing} & \textbf{CO$_2$ by 2100} & \textbf{Warming} \\
 \midrule
-SSP245 & Middle of the road, moderate mitigation & $\sim$600 ppm & $\sim$2.7°C \\
-SSP370 & Regional rivalry, medium-high emissions & $\sim$850 ppm & $\sim$3.6°C \\
-SSP585 & Fossil-fueled development, high emissions & $\sim$1100 ppm & $\sim$4.4°C \\
+SSP245 & SSP2 (Middle of Road) & 4.5 W/m$^2$ & $\sim$600 ppm & $\sim$2.7°C \\
+SSP370 & SSP3 (Regional Rivalry) & 7.0 W/m$^2$ & $\sim$850 ppm & $\sim$3.6°C \\
+SSP585 & SSP5 (Fossil-fueled) & 8.5 W/m$^2$ & $\sim$1100 ppm & $\sim$4.4°C \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The SSP number (e.g., 585) encodes both the socioeconomic pathway (first digit) and the approximate radiative forcing in W/m$^2$ by 2100 (remaining digits). SSP585 represents a future with high energy demand met primarily by fossil fuels, while SSP245 assumes moderate mitigation efforts leading to stabilization.
+These three scenarios represent a range from moderate mitigation (SSP245) to high emissions (SSP585). SSP126 (strong mitigation, $\sim$1.5°C) and SSP4 variants were not included in the CHAZ dataset.
 
 By comparing hazard maps across SSP scenarios, users can assess:
 
