@@ -69,6 +69,33 @@ The process works as follows:
 
 For example, a 100-year return period wind speed is the value that has a 1\% annual exceedance probability based on the statistical distribution of all synthetic storms. This approach allows robust estimation of rare events (like 1000-year winds) because the synthetic storm ensemble provides sufficient statistical samples, even when the underlying climate period is only 20 years.
 
+\subsection{Model Scope and Limitations}
+
+CHAZ focuses on large-scale environmental factors that drive tropical cyclone behavior:
+
+\begin{itemize}
+    \item Sea Surface Temperature (SST)
+    \item Potential Intensity (PI)
+    \item Vertical wind shear
+    \item Mid-level humidity
+    \item Atmospheric steering flow
+\end{itemize}
+
+The model does account for landfall-induced weakening---storms lose intensity over land due to the loss of oceanic energy and increased surface friction---but this is handled in a simplified, parameterized way.
+
+\textbf{What CHAZ does not include:}
+
+\begin{itemize}
+    \item Detailed surface roughness variations (urban vs.\ rural vs.\ forest)
+    \item Terrain effects (hills, valleys, elevation changes)
+    \item Building density or urban canopy effects
+    \item Specific land cover types
+\end{itemize}
+
+The wind speeds in this dataset represent maximum sustained winds at standard measurement height (10m) from synthetic storms, without site-specific adjustments for local surface conditions. For detailed local wind hazard assessment, CHAZ output would typically be post-processed with wind field models (e.g., Holland parametric model), surface roughness correction factors, and terrain adjustments.
+
+Additionally, because CHAZ is a \textit{coastal} wind hazard model, data coverage is naturally denser near coastlines where hurricanes make landfall, with sparser coverage in interior regions.
+
 \subsection{Climate Model Input}
 
 The visualization includes data from six CMIP6 climate models, all run under the SSP585 scenario (high emissions, ``business as usual''). Users can select any individual model or view a multi-model mean that averages across all six. Table~\ref{tab:models} describes each available model.
