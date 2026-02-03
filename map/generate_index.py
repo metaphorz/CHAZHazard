@@ -340,6 +340,59 @@ html_content = f'''<!DOCTYPE html>
             }});
         }}
 
+        // Find nearest data point to a given lat/lon
+        function findNearestPoint(lat, lon) {{
+            let nearest = null;
+            let minDist = Infinity;
+            for (const point of floridaData) {{
+                const dLat = lat - point.lat;
+                const dLon = lon - point.lon;
+                const dist = dLat * dLat + dLon * dLon;
+                if (dist < minDist) {{
+                    minDist = dist;
+                    nearest = point;
+                }}
+            }}
+            // Only return if within ~0.1 degree (~11km)
+            return minDist < 0.01 ? nearest : null;
+        }}
+
+        // Create a popup for heatmap/contour tooltips
+        let hoverPopup = L.popup({{ closeButton: false, offset: [0, -5] }});
+
+        function formatPointTooltip(point) {{
+            const windSpeed = point[currentRP];
+            const kmh = (windSpeed * 3.6).toFixed(0);
+            const mph = (windSpeed * 2.237).toFixed(0);
+            const category = getCategory(windSpeed);
+            return `<strong>${{point.lat.toFixed(2)}}°N, ${{Math.abs(point.lon).toFixed(2)}}°W</strong><br>` +
+                `<strong>${{windSpeed.toFixed(1)}} m/s</strong> (${{kmh}} km/h, ${{mph}} mph)<br>` +
+                `${{category}}<br><hr style="margin:4px 0">` +
+                `<span style="font-size:10px">` +
+                `10yr: ${{point.rp10}} | 25yr: ${{point.rp25}} | 50yr: ${{point.rp50}}<br>` +
+                `100yr: ${{point.rp100}} | 250yr: ${{point.rp250}} | 1000yr: ${{point.rp1000}}</span>`;
+        }}
+
+        function onMapMouseMove(e) {{
+            if (currentDisplay === 'circle') return; // Circles have their own tooltips
+            const point = findNearestPoint(e.latlng.lat, e.latlng.lng);
+            if (point) {{
+                hoverPopup
+                    .setLatLng(e.latlng)
+                    .setContent(formatPointTooltip(point))
+                    .openOn(map);
+            }} else {{
+                map.closePopup(hoverPopup);
+            }}
+        }}
+
+        function onMapMouseOut() {{
+            map.closePopup(hoverPopup);
+        }}
+
+        map.on('mousemove', onMapMouseMove);
+        map.on('mouseout', onMapMouseOut);
+
         // Florida land polygon for boundary checking
         const FLORIDA_POLYGON = [
             [-87.5, 30.95], [-87.5, 30.1], [-86.5, 30.1], [-85.5, 29.7],
