@@ -246,8 +246,8 @@ The interactive map includes the following features:
     \item \textbf{Climate Model Selector}: Choose from six individual CMIP6 models or the multi-model mean (CESM2 is the default)
     \item \textbf{Time Period Selector}: Switch between historical, mid-century, and late-century projections
     \item \textbf{Return Period Selector}: Choose from 10, 25, 50, 100, 250, or 1000-year return periods
-    \item \textbf{Color-Coded Markers}: Circle markers colored by wind speed intensity
-    \item \textbf{Data Point Tooltips}: Hover over any marker to display coordinates, wind speed (m/s, km/h, mph), hurricane category, and all return period values
+    \item \textbf{Display Mode Selector}: Choose between Circle (points), Heatmap (interpolated surface), or Contour (isolines) visualization
+    \item \textbf{Data Point Tooltips}: Hover over the map to display coordinates, wind speed (m/s, km/h, mph), hurricane category, and all return period values
     \item \textbf{Legend}: Wind speed scale with three unit systems
 \end{itemize}
 
@@ -260,9 +260,43 @@ Each dropdown selector in the control panel includes an information icon (\texti
     \item \textbf{Climate Model}: Information about CMIP6 models and the multi-model mean
     \item \textbf{Time Period}: Explanation of historical baseline vs.\ future projections
     \item \textbf{Return Period}: Definition of return periods and exceedance probability
+    \item \textbf{Display}: Description of each visualization mode (Circle, Heatmap, Contour)
 \end{itemize}
 
 These tooltips provide in-context guidance without requiring users to consult external documentation.
+
+\subsection{Display Modes}
+
+The visualization offers three display modes, selectable from the Display dropdown:
+
+\begin{itemize}
+    \item \textbf{Circle}: Individual data points displayed as colored circles. This is the default mode and shows the raw grid resolution of the CHAZ model output (Figure~\ref{fig:display_circle}).
+    \item \textbf{Heatmap}: A continuous color surface created using Inverse Distance Weighting (IDW) interpolation. This mode provides a smooth visualization of the spatial wind speed gradient across Florida (Figure~\ref{fig:display_heatmap}).
+    \item \textbf{Contour}: Isolines connecting points of equal wind speed (in mph). This mode uses the marching squares algorithm with segment stitching to create continuous contour lines. Labels appear on all reasonably large contours (Figure~\ref{fig:display_contour}).
+\end{itemize}
+
+All three modes support hover tooltips showing detailed wind speed information for the nearest data point.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{display_circle.png}
+\caption{Circle display mode showing individual data points as colored markers. Each point represents a CHAZ model grid cell with wind speed indicated by color.}
+\label{fig:display_circle}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{display_heatmap.png}
+\caption{Heatmap display mode using IDW interpolation to create a continuous color surface. The interpolation is bounded to Florida land areas to prevent extension into water.}
+\label{fig:display_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{display_contour.png}
+\caption{Contour display mode showing isolines of equal wind speed. Labels indicate wind speed in mph. The marching squares algorithm with segment stitching creates smooth, continuous contour lines.}
+\label{fig:display_contour}
+\end{figure}
 
 \section{Results}
 
