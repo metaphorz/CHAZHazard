@@ -739,6 +739,8 @@ html_content = f'''<!DOCTYPE html>
                 // Draw polylines and label all reasonably large ones
                 const MIN_LABEL_LENGTH = 8; // Minimum points for a contour to get a label
 
+                const mphValue = Math.round(threshold * 2.237); // Convert m/s to mph
+
                 polylines.forEach(chain => {{
                     if (chain.length >= 2) {{
                         const line = L.polyline(chain, {{
@@ -746,7 +748,7 @@ html_content = f'''<!DOCTYPE html>
                             weight: 2.5,
                             opacity: 0.9
                         }});
-                        line.bindTooltip(`${{threshold}} m/s`, {{ sticky: true }});
+                        line.bindTooltip(`${{mphValue}} mph (${{threshold}} m/s)`, {{ sticky: true }});
                         contourLayer.addLayer(line);
 
                         // Add label on all reasonably large contours
@@ -755,8 +757,8 @@ html_content = f'''<!DOCTYPE html>
                             const label = L.marker(chain[midIdx], {{
                                 icon: L.divIcon({{
                                     className: 'contour-label',
-                                    html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
-                                    iconSize: [30, 15]
+                                    html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{mphValue}} mph</span>`,
+                                    iconSize: [40, 15]
                                 }})
                             }});
                             contourLayer.addLayer(label);
