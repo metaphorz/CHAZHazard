@@ -191,6 +191,20 @@ html_content = f'''<!DOCTYPE html>
             </select>
         </div>
 
+        <div class="control-group">
+            <label for="displayMode">Display &#9432;</label>
+            <div class="tooltip-text">
+                <strong>Circle:</strong> Individual data points as colored circles<br>
+                <strong>Heatmap:</strong> Continuous heat visualization showing intensity density<br>
+                <strong>Contour:</strong> Isolines connecting points of equal wind speed
+            </div>
+            <select id="displayMode">
+                <option value="circle" selected>Circle</option>
+                <option value="heatmap">Heatmap</option>
+                <option value="contour">Contour</option>
+            </select>
+        </div>
+
         <div style="color:#888; font-size:10px; margin-top:5px;">{num_points:,} land points</div>
     </div>
 
@@ -219,6 +233,7 @@ html_content = f'''<!DOCTYPE html>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         // Initialize map centered on Florida
         const map = L.map('map').setView([27.5, -82.5], 7);
@@ -260,18 +275,41 @@ html_content = f'''<!DOCTYPE html>
 
         let floridaData = [];
         let markers = L.layerGroup().addTo(map);
+        let heatLayer = null;
+        let contourLayer = L.layerGroup();
         let currentRP = 'rp250';
         let currentPeriod = 'base';
         let currentModel = 'CESM2';
         let currentSSP = 'ssp585';
+        let currentDisplay = 'circle';
 
         // Initialize data
         floridaData = allModelData[currentSSP][currentModel][currentPeriod];
-        renderMarkers();
+        renderVisualization();
 
-        function renderMarkers() {{
+        function clearAllLayers() {{
             markers.clearLayers();
+            if (heatLayer) {{
+                map.removeLayer(heatLayer);
+                heatLayer = null;
+            }}
+            contourLayer.clearLayers();
+            map.removeLayer(contourLayer);
+        }}
 
+        function renderVisualization() {{
+            clearAllLayers();
+
+            if (currentDisplay === 'circle') {{
+                renderCircles();
+            }} else if (currentDisplay === 'heatmap') {{
+                renderHeatmap();
+            }} else if (currentDisplay === 'contour') {{
+                renderContours();
+            }}
+        }}
+
+        function renderCircles() {{
             floridaData.forEach(point => {{
                 const windSpeed = point[currentRP];
                 const color = getColor(windSpeed);
@@ -303,31 +341,127 @@ html_content = f'''<!DOCTYPE html>
             }});
         }}
 
+        function renderHeatmap() {{
+            // Prepare heat data: [lat, lng, intensity]
+            // Normalize intensity to 0-1 range based on wind speed
+            const maxWind = 80;
+            const minWind = 20;
+            const heatData = floridaData.map(point => {{
+                const windSpeed = point[currentRP];
+                const intensity = Math.min(1, Math.max(0, (windSpeed - minWind) / (maxWind - minWind)));
+                return [point.lat, point.lon, intensity];
+            }});
+
+            heatLayer = L.heatLayer(heatData, {{
+                radius: 20,
+                blur: 15,
+                maxZoom: 10,
+                max: 1.0,
+                gradient: {{
+                    0.0: '#313695',
+                    0.2: '#4575b4',
+                    0.3: '#74add1',
+                    0.4: '#abd9e9',
+                    0.5: '#ffffbf',
+                    0.6: '#fee090',
+                    0.7: '#fdae61',
+                    0.8: '#f46d43',
+                    0.9: '#d73027',
+                    1.0: '#a50026'
+                }}
+            }}).addTo(map);
+        }}
+
+        function renderContours() {{
+            // Create contour lines at specific wind speed thresholds
+            const thresholds = [30, 40, 45, 50, 55, 60, 70];
+            const colors = ['#4575b4', '#74add1', '#abd9e9', '#ffffbf', '#fdae61', '#f46d43', '#d73027'];
+
+            contourLayer.addTo(map);
+
+            // Group points by approximate grid cell for contouring
+            const gridSize = 0.15; // degrees
+            const grid = {{}};
+
+            floridaData.forEach(point => {{
+                const gridX = Math.floor(point.lon / gridSize);
+                const gridY = Math.floor(point.lat / gridSize);
+                const key = `${{gridX}},${{gridY}}`;
+                if (!grid[key]) {{
+                    grid[key] = [];
+                }}
+                grid[key].push(point);
+            }});
+
+            // For each threshold, draw isolines by connecting nearby points
+            thresholds.forEach((threshold, idx) => {{
+                const color = colors[idx];
+                const pointsAbove = floridaData.filter(p => p[currentRP] >= threshold && p[currentRP] < (thresholds[idx + 1] || 100));
+
+                // Draw small circles at boundary points to simulate contours
+                pointsAbove.forEach(point => {{
+                    const circle = L.circleMarker([point.lat, point.lon], {{
+                        radius: 4,
+                        fillColor: color,
+                        color: color,
+                        weight: 2,
+                        opacity: 0.9,
+                        fillOpacity: 0.6
+                    }});
+
+                    circle.bindTooltip(`${{threshold}}+ m/s contour<br>${{point[currentRP].toFixed(1)}} m/s at this point`,
+                        {{ direction: 'bottom', offset: [0, 10] }});
+
+                    contourLayer.addLayer(circle);
+                }});
+
+                // Add contour label
+                if (pointsAbove.length > 0) {{
+                    // Find a representative point for the label
+                    const midPoint = pointsAbove[Math.floor(pointsAbove.length / 2)];
+                    const label = L.marker([midPoint.lat, midPoint.lon], {{
+                        icon: L.divIcon({{
+                            className: 'contour-label',
+                            html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
+                            iconSize: [30, 15]
+                        }})
+                    }});
+                    contourLayer.addLayer(label);
+                }}
+            }});
+        }}
+
         // Handle future scenario (SSP) change
         document.getElementById('futureScenario').addEventListener('change', function(e) {{
             currentSSP = e.target.value;
             floridaData = allModelData[currentSSP][currentModel][currentPeriod];
-            renderMarkers();
+            renderVisualization();
         }});
 
         // Handle climate model change
         document.getElementById('climateModel').addEventListener('change', function(e) {{
             currentModel = e.target.value;
             floridaData = allModelData[currentSSP][currentModel][currentPeriod];
-            renderMarkers();
+            renderVisualization();
         }});
 
         // Handle time period change
         document.getElementById('timePeriod').addEventListener('change', function(e) {{
             currentPeriod = e.target.value;
             floridaData = allModelData[currentSSP][currentModel][currentPeriod];
-            renderMarkers();
+            renderVisualization();
         }});
 
         // Handle return period change
         document.getElementById('returnPeriod').addEventListener('change', function(e) {{
             currentRP = e.target.value;
-            renderMarkers();
+            renderVisualization();
+        }});
+
+        // Handle display mode change
+        document.getElementById('displayMode').addEventListener('change', function(e) {{
+            currentDisplay = e.target.value;
+            renderVisualization();
         }});
     </script>
 </body>
