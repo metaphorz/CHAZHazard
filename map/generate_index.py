@@ -233,7 +233,6 @@ html_content = f'''<!DOCTYPE html>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         // Initialize map centered on Florida
         const map = L.map('map').setView([27.5, -82.5], 7);
@@ -342,34 +341,124 @@ html_content = f'''<!DOCTYPE html>
         }}
 
         function renderHeatmap() {{
-            // Prepare heat data: [lat, lng, intensity]
-            // Normalize intensity to 0-1 range based on wind speed
-            const maxWind = 80;
-            const minWind = 20;
-            const heatData = floridaData.map(point => {{
-                const windSpeed = point[currentRP];
-                const intensity = Math.min(1, Math.max(0, (windSpeed - minWind) / (maxWind - minWind)));
-                return [point.lat, point.lon, intensity];
+            // IDW (Inverse Distance Weighting) interpolation on canvas
+            const bounds = map.getBounds();
+            const size = map.getSize();
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = size.x;
+            canvas.height = size.y;
+            const ctx = canvas.getContext('2d');
+
+            // Resolution - lower = faster, higher = smoother
+            const resolution = 3; // pixels per calculation
+            const width = Math.ceil(canvas.width / resolution);
+            const height = Math.ceil(canvas.height / resolution);
+
+            // Precompute data point pixel positions
+            const dataPoints = floridaData.map(point => {{
+                const pixelPos = map.latLngToContainerPoint([point.lat, point.lon]);
+                return {{
+                    x: pixelPos.x,
+                    y: pixelPos.y,
+                    value: point[currentRP]
+                }};
             }});
 
-            heatLayer = L.heatLayer(heatData, {{
-                radius: 20,
-                blur: 15,
-                maxZoom: 10,
-                max: 1.0,
-                gradient: {{
-                    0.0: '#313695',
-                    0.2: '#4575b4',
-                    0.3: '#74add1',
-                    0.4: '#abd9e9',
-                    0.5: '#ffffbf',
-                    0.6: '#fee090',
-                    0.7: '#fdae61',
-                    0.8: '#f46d43',
-                    0.9: '#d73027',
-                    1.0: '#a50026'
+            // IDW parameters
+            const power = 2;
+            const maxDistance = 120; // Max influence distance in pixels
+
+            // Color function returning RGB
+            function getColorRGB(speed) {{
+                if (speed >= 80) return [165, 0, 38];
+                if (speed >= 70) return [215, 48, 39];
+                if (speed >= 60) return [244, 109, 67];
+                if (speed >= 55) return [253, 174, 97];
+                if (speed >= 50) return [254, 224, 144];
+                if (speed >= 45) return [255, 255, 191];
+                if (speed >= 40) return [171, 217, 233];
+                if (speed >= 30) return [116, 173, 209];
+                if (speed >= 20) return [69, 117, 180];
+                return [49, 54, 149];
+            }}
+
+            // Create image data
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+
+            // Calculate interpolated values
+            for (let py = 0; py < height; py++) {{
+                for (let px = 0; px < width; px++) {{
+                    const x = px * resolution;
+                    const y = py * resolution;
+
+                    let weightSum = 0;
+                    let valueSum = 0;
+                    let hasNearby = false;
+
+                    for (const point of dataPoints) {{
+                        const dx = x - point.x;
+                        const dy = y - point.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < maxDistance) {{
+                            hasNearby = true;
+                            if (dist < 1) {{
+                                weightSum = 1;
+                                valueSum = point.value;
+                                break;
+                            }}
+                            const weight = 1 / Math.pow(dist, power);
+                            weightSum += weight;
+                            valueSum += weight * point.value;
+                        }}
+                    }}
+
+                    const idx = (py * width + px) * 4;
+
+                    if (hasNearby && weightSum > 0) {{
+                        const interpolatedValue = valueSum / weightSum;
+                        const [r, g, b] = getColorRGB(interpolatedValue);
+                        data[idx] = r;
+                        data[idx + 1] = g;
+                        data[idx + 2] = b;
+                        data[idx + 3] = 180;
+                    }} else {{
+                        data[idx + 3] = 0;
+                    }}
                 }}
+            }}
+
+            // Draw to temp canvas then scale up
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            tempCanvas.getContext('2d').putImageData(imageData, 0, 0);
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(tempCanvas, 0, 0, width, height, 0, 0, canvas.width, canvas.height);
+
+            // Create image overlay
+            heatLayer = L.imageOverlay(canvas.toDataURL(), bounds, {{
+                opacity: 0.85
             }}).addTo(map);
+
+            // Redraw on map move
+            map.off('moveend', onMapMove);
+            map.on('moveend', onMapMove);
+        }}
+
+        function onMapMove() {{
+            if (currentDisplay === 'heatmap') {{
+                if (heatLayer) {{
+                    map.removeLayer(heatLayer);
+                    heatLayer = null;
+                }}
+                renderHeatmap();
+            }}
         }}
 
         function renderContours() {{
