@@ -340,6 +340,49 @@ html_content = f'''<!DOCTYPE html>
             }});
         }}
 
+        // Florida land polygon for boundary checking
+        const FLORIDA_POLYGON = [
+            [-87.5, 30.95], [-87.5, 30.1], [-86.5, 30.1], [-85.5, 29.7],
+            [-85.0, 29.1], [-84.0, 29.6], [-83.5, 29.0], [-82.8, 28.0],
+            [-82.7, 27.5], [-82.1, 26.5], [-81.5, 25.9], [-80.9, 25.1],
+            [-80.1, 25.1], [-80.1, 26.0], [-80.1, 27.0], [-80.3, 28.0],
+            [-80.6, 28.5], [-81.2, 29.5], [-81.3, 30.1], [-81.5, 30.7],
+            [-82.0, 30.6], [-82.5, 30.4], [-83.0, 30.5], [-84.0, 30.5],
+            [-85.0, 30.95], [-87.5, 30.95]
+        ];
+        const KEYS_POLYGON = [
+            [-82.0, 24.5], [-81.5, 24.5], [-80.3, 25.0], [-80.0, 25.2],
+            [-80.5, 25.5], [-81.0, 25.2], [-81.8, 24.7], [-82.0, 24.5]
+        ];
+
+        // Point-in-polygon test
+        function pointInPolygon(lon, lat, polygon) {{
+            let inside = false;
+            const n = polygon.length;
+            let p1x = polygon[0][0], p1y = polygon[0][1];
+            for (let i = 1; i <= n; i++) {{
+                const p2x = polygon[i % n][0], p2y = polygon[i % n][1];
+                if (lat > Math.min(p1y, p2y)) {{
+                    if (lat <= Math.max(p1y, p2y)) {{
+                        if (lon <= Math.max(p1x, p2x)) {{
+                            if (p1y !== p2y) {{
+                                const xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x;
+                                if (p1x === p2x || lon <= xinters) {{
+                                    inside = !inside;
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+                p1x = p2x; p1y = p2y;
+            }}
+            return inside;
+        }}
+
+        function isFloridaLand(lon, lat) {{
+            return pointInPolygon(lon, lat, FLORIDA_POLYGON) || pointInPolygon(lon, lat, KEYS_POLYGON);
+        }}
+
         // Compute data bounds from Florida points
         function getDataBounds() {{
             const lats = floridaData.map(p => p.lat);
@@ -547,11 +590,21 @@ html_content = f'''<!DOCTYPE html>
                 }}
             }}
 
-            // Convert grid coordinates to lat/lon
-            return segs.map(seg => [
-                [latMin + seg[0][1] * dy, lonMin + seg[0][0] * dx],
-                [latMin + seg[1][1] * dy, lonMin + seg[1][0] * dx]
-            ]);
+            // Convert grid coordinates to lat/lon and filter to Florida land
+            const result = [];
+            for (const seg of segs) {{
+                const lat1 = latMin + seg[0][1] * dy;
+                const lon1 = lonMin + seg[0][0] * dx;
+                const lat2 = latMin + seg[1][1] * dy;
+                const lon2 = lonMin + seg[1][0] * dx;
+                // Check midpoint is on Florida land
+                const midLat = (lat1 + lat2) / 2;
+                const midLon = (lon1 + lon2) / 2;
+                if (isFloridaLand(midLon, midLat)) {{
+                    result.push([[lat1, lon1], [lat2, lon2]]);
+                }}
+            }}
+            return result;
         }}
 
         // Stitch segments into continuous polylines (from genesis-codex)
@@ -630,7 +683,9 @@ html_content = f'''<!DOCTYPE html>
                 // Stitch into continuous polylines
                 const polylines = stitchSegments(segments);
 
-                // Draw polylines
+                // Draw polylines and label all reasonably large ones
+                const MIN_LABEL_LENGTH = 8; // Minimum points for a contour to get a label
+
                 polylines.forEach(chain => {{
                     if (chain.length >= 2) {{
                         const line = L.polyline(chain, {{
@@ -640,25 +695,21 @@ html_content = f'''<!DOCTYPE html>
                         }});
                         line.bindTooltip(`${{threshold}} m/s`, {{ sticky: true }});
                         contourLayer.addLayer(line);
+
+                        // Add label on all reasonably large contours
+                        if (chain.length >= MIN_LABEL_LENGTH) {{
+                            const midIdx = Math.floor(chain.length / 2);
+                            const label = L.marker(chain[midIdx], {{
+                                icon: L.divIcon({{
+                                    className: 'contour-label',
+                                    html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
+                                    iconSize: [30, 15]
+                                }})
+                            }});
+                            contourLayer.addLayer(label);
+                        }}
                     }}
                 }});
-
-                // Add label on longest polyline
-                let longest = polylines[0] || [];
-                for (const pl of polylines) {{
-                    if (pl.length > longest.length) longest = pl;
-                }}
-                if (longest.length > 3) {{
-                    const midIdx = Math.floor(longest.length / 2);
-                    const label = L.marker(longest[midIdx], {{
-                        icon: L.divIcon({{
-                            className: 'contour-label',
-                            html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
-                            iconSize: [30, 15]
-                        }})
-                    }});
-                    contourLayer.addLayer(label);
-                }}
             }});
 
             map.off('moveend', onContourMove);
