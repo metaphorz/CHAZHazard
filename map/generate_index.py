@@ -462,53 +462,131 @@ html_content = f'''<!DOCTYPE html>
         }}
 
         function renderContours() {{
-            // Create contour lines at specific wind speed thresholds
+            // IDW interpolation + Marching Squares for smooth contour lines
             const thresholds = [30, 40, 45, 50, 55, 60, 70];
-            const colors = ['#4575b4', '#74add1', '#abd9e9', '#ffffbf', '#fdae61', '#f46d43', '#d73027'];
+            const colors = ['#4575b4', '#74add1', '#abd9e9', '#fee090', '#fdae61', '#f46d43', '#d73027'];
 
             contourLayer.addTo(map);
 
-            // Group points by approximate grid cell for contouring
-            const gridSize = 0.15; // degrees
-            const grid = {{}};
+            // Create interpolated grid in lat/lon space
+            const bounds = map.getBounds();
+            const gridRes = 0.05; // degrees per cell
+            const latMin = bounds.getSouth();
+            const latMax = bounds.getNorth();
+            const lonMin = bounds.getWest();
+            const lonMax = bounds.getEast();
 
-            floridaData.forEach(point => {{
-                const gridX = Math.floor(point.lon / gridSize);
-                const gridY = Math.floor(point.lat / gridSize);
-                const key = `${{gridX}},${{gridY}}`;
-                if (!grid[key]) {{
-                    grid[key] = [];
+            const rows = Math.ceil((latMax - latMin) / gridRes);
+            const cols = Math.ceil((lonMax - lonMin) / gridRes);
+
+            // IDW interpolation to create grid
+            const power = 2;
+            const maxDist = 0.3; // degrees
+
+            const grid = [];
+            for (let r = 0; r <= rows; r++) {{
+                grid[r] = [];
+                for (let c = 0; c <= cols; c++) {{
+                    const lat = latMin + r * gridRes;
+                    const lon = lonMin + c * gridRes;
+
+                    let weightSum = 0;
+                    let valueSum = 0;
+
+                    for (const point of floridaData) {{
+                        const dLat = lat - point.lat;
+                        const dLon = lon - point.lon;
+                        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+
+                        if (dist < maxDist) {{
+                            if (dist < 0.001) {{
+                                weightSum = 1;
+                                valueSum = point[currentRP];
+                                break;
+                            }}
+                            const weight = 1 / Math.pow(dist, power);
+                            weightSum += weight;
+                            valueSum += weight * point[currentRP];
+                        }}
+                    }}
+
+                    grid[r][c] = weightSum > 0 ? valueSum / weightSum : null;
                 }}
-                grid[key].push(point);
-            }});
+            }}
 
-            // For each threshold, draw isolines by connecting nearby points
+            // Marching squares for each threshold
             thresholds.forEach((threshold, idx) => {{
                 const color = colors[idx];
-                const pointsAbove = floridaData.filter(p => p[currentRP] >= threshold && p[currentRP] < (thresholds[idx + 1] || 100));
+                const segments = [];
 
-                // Draw small circles at boundary points to simulate contours
-                pointsAbove.forEach(point => {{
-                    const circle = L.circleMarker([point.lat, point.lon], {{
-                        radius: 4,
-                        fillColor: color,
+                // Find contour segments using marching squares
+                for (let r = 0; r < rows; r++) {{
+                    for (let c = 0; c < cols; c++) {{
+                        const v00 = grid[r][c];
+                        const v10 = grid[r][c + 1];
+                        const v01 = grid[r + 1]?.[c];
+                        const v11 = grid[r + 1]?.[c + 1];
+
+                        if (v00 === null || v10 === null || v01 === null || v11 === null) continue;
+
+                        // Determine cell configuration
+                        const b00 = v00 >= threshold ? 1 : 0;
+                        const b10 = v10 >= threshold ? 2 : 0;
+                        const b01 = v01 >= threshold ? 4 : 0;
+                        const b11 = v11 >= threshold ? 8 : 0;
+                        const cellType = b00 + b10 + b01 + b11;
+
+                        if (cellType === 0 || cellType === 15) continue;
+
+                        const lat0 = latMin + r * gridRes;
+                        const lat1 = latMin + (r + 1) * gridRes;
+                        const lon0 = lonMin + c * gridRes;
+                        const lon1 = lonMin + (c + 1) * gridRes;
+
+                        // Interpolate edge crossings
+                        const interp = (v1, v2, p1, p2) => {{
+                            const t = (threshold - v1) / (v2 - v1);
+                            return p1 + t * (p2 - p1);
+                        }};
+
+                        const edges = {{}};
+                        if ((b00 !== 0) !== (b10 !== 0)) edges.bottom = [lat0, interp(v00, v10, lon0, lon1)];
+                        if ((b01 !== 0) !== (b11 !== 0)) edges.top = [lat1, interp(v01, v11, lon0, lon1)];
+                        if ((b00 !== 0) !== (b01 !== 0)) edges.left = [interp(v00, v01, lat0, lat1), lon0];
+                        if ((b10 !== 0) !== (b11 !== 0)) edges.right = [interp(v10, v11, lat0, lat1), lon1];
+
+                        // Connect edges based on cell type
+                        const edgeKeys = Object.keys(edges);
+                        if (edgeKeys.length >= 2) {{
+                            if (cellType === 5 || cellType === 10) {{
+                                // Saddle point - need special handling
+                                segments.push([edges[edgeKeys[0]], edges[edgeKeys[1]]]);
+                                if (edgeKeys.length === 4) {{
+                                    segments.push([edges[edgeKeys[2]], edges[edgeKeys[3]]]);
+                                }}
+                            }} else {{
+                                segments.push([edges[edgeKeys[0]], edges[edgeKeys[1]]]);
+                            }}
+                        }}
+                    }}
+                }}
+
+                // Draw contour lines
+                segments.forEach(seg => {{
+                    const line = L.polyline([[seg[0][0], seg[0][1]], [seg[1][0], seg[1][1]]], {{
                         color: color,
                         weight: 2,
-                        opacity: 0.9,
-                        fillOpacity: 0.6
+                        opacity: 0.8
                     }});
-
-                    circle.bindTooltip(`${{threshold}}+ m/s contour<br>${{point[currentRP].toFixed(1)}} m/s at this point`,
-                        {{ direction: 'bottom', offset: [0, 10] }});
-
-                    contourLayer.addLayer(circle);
+                    contourLayer.addLayer(line);
                 }});
 
-                // Add contour label
-                if (pointsAbove.length > 0) {{
-                    // Find a representative point for the label
-                    const midPoint = pointsAbove[Math.floor(pointsAbove.length / 2)];
-                    const label = L.marker([midPoint.lat, midPoint.lon], {{
+                // Add label at midpoint of longest segment group
+                if (segments.length > 0) {{
+                    const midSeg = segments[Math.floor(segments.length / 2)];
+                    const labelLat = (midSeg[0][0] + midSeg[1][0]) / 2;
+                    const labelLon = (midSeg[0][1] + midSeg[1][1]) / 2;
+                    const label = L.marker([labelLat, labelLon], {{
                         icon: L.divIcon({{
                             className: 'contour-label',
                             html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{threshold}}</span>`,
@@ -518,6 +596,17 @@ html_content = f'''<!DOCTYPE html>
                     contourLayer.addLayer(label);
                 }}
             }});
+
+            // Redraw on map move
+            map.off('moveend', onContourMove);
+            map.on('moveend', onContourMove);
+        }}
+
+        function onContourMove() {{
+            if (currentDisplay === 'contour') {{
+                contourLayer.clearLayers();
+                renderContours();
+            }}
         }}
 
         // Handle future scenario (SSP) change
