@@ -53,6 +53,88 @@ CHAZ consists of three primary modules:
     \item \textbf{Intensity Module}: Evolves storm intensity using an autoregressive model with deterministic forcing (based on potential intensity, wind shear, humidity) and stochastic elements.
 \end{enumerate}
 
+\subsection{Synthetic Track Generation}
+
+Understanding how CHAZ creates synthetic hurricane tracks helps interpret the hazard data. Each synthetic storm is generated through a multi-step process that samples meteorological variables from the driving climate model.
+
+\subsubsection{Genesis (Storm Formation)}
+
+CHAZ begins by randomly placing potential storm ``seeds'' across ocean basins. Each seed has a probability of developing into a tropical cyclone based on local environmental conditions:
+
+\begin{itemize}
+    \item \textbf{Sea Surface Temperature (SST)}: Warm water ($>$26°C) provides energy for storm development
+    \item \textbf{Vertical wind shear}: Low shear allows the storm vortex to remain vertically aligned
+    \item \textbf{Mid-level humidity}: Moist air at 500--700 hPa supports deep convection
+    \item \textbf{Low-level vorticity}: Pre-existing rotation at 850 hPa helps spin-up
+\end{itemize}
+
+Seeds that survive this probabilistic filtering become synthetic storms with assigned genesis locations and times.
+
+\subsubsection{Track Propagation}
+
+Once formed, synthetic storms are advected forward in time (typically 6-hour steps) using a Beta-and-Advection model:
+
+\begin{equation}
+\vec{V}_{storm} = \vec{V}_{steering} + \vec{V}_{beta} + \vec{V}_{random}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\vec{V}_{steering}$ is the deep-layer mean wind (850--200 hPa average) from the climate model
+    \item $\vec{V}_{beta}$ is the beta drift---a systematic poleward and westward motion caused by the Coriolis effect acting on the storm's circulation
+    \item $\vec{V}_{random}$ is a stochastic component that captures track variability not explained by the large-scale flow
+\end{itemize}
+
+The track integration continues until the storm dissipates (over cold water or land) or exits the model domain.
+
+\subsubsection{Intensity Evolution}
+
+Storm intensity evolves according to the balance between intensification and weakening factors:
+
+\begin{itemize}
+    \item \textbf{Potential Intensity (PI)}: The theoretical maximum intensity given local SST and atmospheric thermodynamic profile---storms tend to intensify toward this ceiling
+    \item \textbf{Wind shear}: Tilts the vortex and ventilates warm core air, causing weakening
+    \item \textbf{Ocean feedback}: Storm-induced upwelling brings cold water to the surface, reducing the energy supply
+    \item \textbf{Land interaction}: Storms weaken rapidly over land due to loss of oceanic energy and increased surface friction
+\end{itemize}
+
+The intensity model uses an autoregressive formulation where current intensity depends on previous intensity plus forcing terms, with stochastic elements to capture the inherent unpredictability of rapid intensification events.
+
+\subsubsection{Environmental Variables Sampled}
+
+Table~\ref{tab:chaz_vars} summarizes the key variables CHAZ samples from each climate model.
+
+\begin{table}[H]
+\centering
+\caption{Environmental variables used by CHAZ for synthetic track generation}
+\label{tab:chaz_vars}
+\begin{tabular}{lll}
+\toprule
+\textbf{Variable} & \textbf{Source} & \textbf{Role in CHAZ} \\
+\midrule
+Sea Surface Temperature & Climate model ocean & Genesis probability, intensity fuel \\
+Steering winds (850--200 hPa) & Climate model atmosphere & Track direction and speed \\
+Vertical wind shear & Climate model atmosphere & Genesis and intensity limiter \\
+Mid-level humidity & Climate model atmosphere & Genesis probability \\
+Potential Intensity & Thermodynamic calculation & Intensity ceiling \\
+Low-level vorticity & Climate model atmosphere & Genesis probability \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Ensemble Generation}
+
+To build robust statistics, CHAZ generates large ensembles of synthetic storms:
+
+\begin{itemize}
+    \item \textbf{80 ensemble members} per climate model/scenario/period combination
+    \item Each member represents a statistically plausible realization of storms consistent with the climate conditions
+    \item The stochastic components in genesis, track, and intensity ensure that each ensemble member differs
+    \item Return period statistics are computed from the combined distribution of all ensemble members
+\end{itemize}
+
+This ensemble approach is why different climate models produce different hazard patterns---each model projects different future SST, shear, and steering flow patterns, which CHAZ translates into different synthetic storm climatologies.
+
 \subsection{Return Period Calculation}
 
 A common question is how CHAZ calculates return periods (e.g., 100-year or 1000-year wind speeds) from a historical period of only 20 years. The key is that CHAZ uses the \textit{climate conditions} from each period to generate thousands of synthetic storms---far more than actually occurred.
