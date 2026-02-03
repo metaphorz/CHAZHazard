@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-This report documents an interactive web-based visualization tool for exploring tropical cyclone wind hazard data for Florida. The tool displays exceedance intensity data from the Columbia HAZard (CHAZ) model, allowing users to compare historical baseline conditions (1995--2014) with mid-century (2041--2060) and late-century (2081--2100) climate projections under the SSP585 emissions scenario. Users can select from six different CMIP6 climate models or view a multi-model mean to explore uncertainty across model projections.
+This report documents an interactive web-based visualization tool for exploring tropical cyclone wind hazard data for Florida. The tool displays exceedance intensity data from the Columbia HAZard (CHAZ) model, allowing users to compare historical baseline conditions (1995--2014) with mid-century (2041--2060) and late-century (2081--2100) climate projections. Users can select from three SSP emissions scenarios (SSP245, SSP370, SSP585), six different CMIP6 climate models (or a multi-model mean), and various return periods to explore how hurricane wind hazards may evolve under different future pathways.
 \end{abstract}
 
 \section{Introduction}
@@ -98,7 +98,7 @@ Additionally, because CHAZ is a \textit{coastal} wind hazard model, data coverag
 
 \subsection{Climate Model Input}
 
-The visualization includes data from six CMIP6 climate models, all run under the SSP585 scenario (high emissions, ``business as usual''). Users can select any individual model or view a multi-model mean that averages across all six. Table~\ref{tab:models} describes each available model.
+The visualization includes data from six CMIP6 climate models, each run under all three SSP scenarios (SSP245, SSP370, SSP585). Users can select any individual model or view a multi-model mean that averages across all six. Table~\ref{tab:models} describes each available model.
 
 \begin{table}[H]
 \centering
@@ -166,6 +166,35 @@ Different climate models make different assumptions about physical processes, le
     \item Use the \textbf{multi-model mean} as a consensus estimate that smooths individual model biases
 \end{itemize}
 
+\section{Future Emissions Scenarios (SSP)}
+
+The visualization allows users to explore hurricane hazard under three Shared Socioeconomic Pathways (SSPs), which represent different assumptions about future socioeconomic development and greenhouse gas emissions. Table~\ref{tab:ssp} describes each scenario.
+
+\begin{table}[H]
+\centering
+\caption{SSP scenarios available in the visualization}
+\label{tab:ssp}
+\begin{tabular}{llll}
+\toprule
+\textbf{Scenario} & \textbf{Description} & \textbf{CO$_2$ by 2100} & \textbf{Warming} \\
+\midrule
+SSP245 & Middle of the road, moderate mitigation & $\sim$600 ppm & $\sim$2.7°C \\
+SSP370 & Regional rivalry, medium-high emissions & $\sim$850 ppm & $\sim$3.6°C \\
+SSP585 & Fossil-fueled development, high emissions & $\sim$1100 ppm & $\sim$4.4°C \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The SSP number (e.g., 585) encodes both the socioeconomic pathway (first digit) and the approximate radiative forcing in W/m$^2$ by 2100 (remaining digits). SSP585 represents a future with high energy demand met primarily by fossil fuels, while SSP245 assumes moderate mitigation efforts leading to stabilization.
+
+By comparing hazard maps across SSP scenarios, users can assess:
+
+\begin{itemize}
+    \item How emissions pathway choices affect future hurricane hazard
+    \item The range of possible futures for Florida's coastal communities
+    \item Whether certain regions show consistent hazard increases regardless of scenario
+\end{itemize}
+
 \section{Time Periods and Climate Projections}
 
 The visualization includes three time periods, as shown in Table~\ref{tab:periods}.
@@ -213,13 +242,27 @@ Key climate variables that change between periods include:
 The interactive map includes the following features:
 
 \begin{itemize}
+    \item \textbf{Future Scenario Selector}: Choose from three SSP emissions scenarios (SSP245, SSP370, SSP585)
     \item \textbf{Climate Model Selector}: Choose from six individual CMIP6 models or the multi-model mean (CESM2 is the default)
     \item \textbf{Time Period Selector}: Switch between historical, mid-century, and late-century projections
     \item \textbf{Return Period Selector}: Choose from 10, 25, 50, 100, 250, or 1000-year return periods
     \item \textbf{Color-Coded Markers}: Circle markers colored by wind speed intensity
-    \item \textbf{Hover Tooltips}: Display coordinates, wind speed (m/s, km/h, mph), hurricane category, and all return period values
+    \item \textbf{Data Point Tooltips}: Hover over any marker to display coordinates, wind speed (m/s, km/h, mph), hurricane category, and all return period values
     \item \textbf{Legend}: Wind speed scale with three unit systems
 \end{itemize}
+
+\subsection{Interactive Help Tooltips}
+
+Each dropdown selector in the control panel includes an information icon (\textit{i}). Hovering over any selector label displays a contextual tooltip (dark box appearing to the left) that explains:
+
+\begin{itemize}
+    \item \textbf{Future Scenario}: Description of each SSP pathway and its warming implications
+    \item \textbf{Climate Model}: Information about CMIP6 models and the multi-model mean
+    \item \textbf{Time Period}: Explanation of historical baseline vs.\ future projections
+    \item \textbf{Return Period}: Definition of return periods and exceedance probability
+\end{itemize}
+
+These tooltips provide in-context guidance without requiring users to consult external documentation.
 
 \section{Results}
 
@@ -268,11 +311,13 @@ The original CHAZ data covers global coastal areas with over 1 million points pe
 \begin{enumerate}
     \item Florida points were extracted using a bounding box (lat: 24--31°N, lon: 88--79.5°W)
     \item Ocean points were filtered out using a Florida land polygon
-    \item Data for all six climate models and three time periods was extracted
-    \item The multi-model mean was computed by averaging wind speeds across all six models at each grid point
+    \item Data for all three SSP scenarios, six climate models, and three time periods was extracted
+    \item The multi-model mean was computed by averaging wind speeds across all six models at each grid point for each SSP/period combination
     \item Wind speeds were rounded to one decimal place to reduce file size
-    \item All data (7 model options $\times$ 3 time periods $\times$ 2,094 points) was embedded in the HTML
+    \item All data (3 SSP scenarios $\times$ 7 model options $\times$ 3 time periods $\times$ 2,134 points) was embedded in the HTML
 \end{enumerate}
+
+The resulting standalone HTML file is approximately 15 MB and requires no server---users can simply open it in any modern web browser.
 
 \section{Acknowledgments}
 
