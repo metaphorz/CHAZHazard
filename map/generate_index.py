@@ -203,6 +203,7 @@ html_content = f'''<!DOCTYPE html>
                 <option value="heatmap">Heatmap</option>
                 <option value="contour">Contour</option>
             </select>
+            <div id="contourNote" style="display:none; color:#666; font-size:10px; margin-top:3px; font-style:italic;">Contour values in mph</div>
         </div>
 
         <div style="color:#888; font-size:10px; margin-top:5px;">{num_points:,} land points</div>
@@ -757,8 +758,8 @@ html_content = f'''<!DOCTYPE html>
                             const label = L.marker(chain[midIdx], {{
                                 icon: L.divIcon({{
                                     className: 'contour-label',
-                                    html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{mphValue}} mph</span>`,
-                                    iconSize: [40, 15]
+                                    html: `<span style="background:${{color}};color:white;padding:2px 4px;border-radius:3px;font-size:10px;font-weight:bold;">${{mphValue}}</span>`,
+                                    iconSize: [30, 15]
                                 }})
                             }});
                             contourLayer.addLayer(label);
@@ -808,6 +809,7 @@ html_content = f'''<!DOCTYPE html>
         // Handle display mode change
         document.getElementById('displayMode').addEventListener('change', function(e) {{
             currentDisplay = e.target.value;
+            document.getElementById('contourNote').style.display = currentDisplay === 'contour' ? 'block' : 'none';
             renderVisualization();
         }});
     </script>
