@@ -230,7 +230,8 @@ html_content = f'''<!DOCTYPE html>
         <strong>CHAZ Hazard Maps</strong><br>
         Columbia Hazard tropical cyclone model<br>
         <a href="https://datadryad.org/dataset/doi:10.5061/dryad.qfttdz0vz" target="_blank">Data source (Dryad)</a><br>
-        <span style="color:#888">Paul Fishwick & Claude Code</span>
+        <a href="https://doi.org/10.5061/dryad.qfttdz0vz" target="_blank">Paper</a>: Meiler, Lee, Sobel, Camargo (2025)<br>
+        <span style="color:#888">Visual Tool: Paul Fishwick & Claude Code</span>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
